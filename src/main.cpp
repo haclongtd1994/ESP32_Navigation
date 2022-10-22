@@ -5,13 +5,10 @@
 #include <BLEServer.h>
 #include <BLE2902.h>
 #include <Button2.h> // version 2.0.3, available in Arduino libraries, or https://github.com/LennartHennigs/Button2
-#include "IDisplay.h"
-#include "ImagesOther.h"
-#include "ImagesDirections.h"
-#include "ImagesLanes.h"
-#include "Font8x8GlyphShifter.h"
 #include "DataConstants.h"
+#include "ImagesDirections.h"
 #include "VoltageMeasurement.h"
+#include "Display.h"
 
 // -----------------
 // Display selection
@@ -21,28 +18,22 @@
 // OLED 128x128 RGB, Waveshare 14747, driver SSD1351
 // Doesn't require external libraries
 // Pins: DIN=23, CLK=18, CS=5, DC=17, RST=16, uses SPIClass(VSPI)
-#include "OLED_SSD1351_nolib.h"
-OLED_SSD1351_nolib selectedDisplay;
-constexpr bool ENABLE_VOLTAGE_MEASUREMENT = false;
+
+SSD1306Wire oled(0x3c, 27, 33); //SDA pin 27, SCL pin 33
+Display IDisplay(&oled);
 
 // TTGO T-Display TFT 135x240
 // Requires library TFT_eSPI from here: https://github.com/Xinyuan-LilyGO/TTGO-T-Display
 // (copy TFT_eSPI to Arduino/libraries)
 //#include "TFT_TTGO.h"
 //TFT_TTGO selectedDisplay;
-//constexpr bool ENABLE_VOLTAGE_MEASUREMENT = true;
+constexpr bool ENABLE_VOLTAGE_MEASUREMENT = false;
 
 // ---------------------
 // Variables for display
 // ---------------------
 #define DISPLAY_MIRRORED 0 // 0 or 1
 #define DISPLAY_ROTATION 0 // 0, 90, 180 or 270
-
-IDisplay& g_display = selectedDisplay;
-const int CANVAS_WIDTH = g_display.GetWidth();
-const int CANVAS_HEIGHT = g_display.GetHeight();
-const int CANVAS_SIZE_BYTES = CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
-uint16_t* g_canvas = NULL;
 
 // ---------------------
 // Constants
@@ -51,9 +42,6 @@ uint16_t* g_canvas = NULL;
 #define CHAR_INDICATE_UUID  "DD3F0AD2-6239-4E1F-81F1-91F6C9F01D86"
 #define CHAR_WRITE_UUID     "DD3F0AD3-6239-4E1F-81F1-91F6C9F01D86"
 
-#define COLOR_BLACK    0x0000
-#define COLOR_WHITE    0xFFFF
-#define COLOR_MAGENTA  0xF81F
 
 // -----------------
 // Variables for BLE
@@ -137,13 +125,8 @@ void setup()
     Serial.begin(115200);
     Serial.println("BLENaviPeripheral2 setup() started");
 
-    g_display.Init();
-    g_canvas = new uint16_t[CANVAS_WIDTH * CANVAS_HEIGHT];
-
-    memset(g_canvas, 0, CANVAS_SIZE_BYTES);
-    Draw4bitImageProgmem(0, 32, 128, 64, IMG_logoTbt128x64_4b);
-    RedrawFromCanvas();
-
+	IDisplay.init();
+	IDisplay.drawWelcomeScreen();
     Serial.println("Display init done");
 
     // init BLE
@@ -189,7 +172,7 @@ void setup()
             return;
         }
 
-        g_display.EnterSleepMode();
+        // IDisplay.displayOff();
 
         // without this the module won't wake up with button if powered from battery,
         // especially if entered deep sleep when powered from USB
@@ -221,7 +204,7 @@ void loop()
     g_btn1.loop();
     if (g_sleepRequested)
     {
-        DrawBottomMessage("SLEEP", COLOR_MAGENTA);
+        // Implement later show Sleep state ECU
     }
     else if (g_showVoltage)
     {
@@ -230,7 +213,7 @@ void loop()
         {
             voltageTimeStamp = millis();
             String voltageStr = String(g_voltage.measureVolts()) + " V";
-            DrawBottomMessage(voltageStr.c_str(), COLOR_WHITE);
+            // Implement later show voltage
         }
     }
     else if (g_deviceConnected)
@@ -242,9 +225,9 @@ void loop()
             std::string currentData = g_naviData;
             if (currentData.size() > 0)
             {
-                memset(g_canvas, 0, CANVAS_SIZE_BYTES);
                 if (currentData[0] == 1)
                 {
+                    IDisplay.clearscreen();
                     Serial.print("Reading basic data: length = ");
                     Serial.println(currentData.length());
 
@@ -254,27 +237,20 @@ void loop()
 
                     if (currentData.length() > textOffset)
                     {
-                        int scale = 4;
-                        const char* text = currentData.c_str() + textOffset;
-                        const int textLen = strlen(text);
-                        if (textLen > 8)
-                        {
-                            scale = 2;
-                        }
-                        else if (textLen > 6)
-                        {
-                            scale = 3;
-                        }
-                        DrawMessage(currentData.c_str() + textOffset, 0, 64, scale, true, Color4To16bit(0x0F)/*0xFFFF*/);
+                        IDisplay.drawMessage(128, 40, 128, currentData.c_str() + textOffset, ArialMT_Plain_16, TEXT_ALIGN_RIGHT);
                     }
 
                     if (currentData.length() > instructionOffset)
+                    {
                         DrawDirection(currentData.c_str()[instructionOffset]);
+                    }
 
                     if (currentData.length() > speedOffset)
+                    {
                         DrawSpeed(currentData.c_str()[speedOffset]);
+                    }
 
-                    RedrawFromCanvas();
+                    IDisplay.displayscreen();
                 }
                 else
                 {
@@ -294,64 +270,18 @@ void loop()
     }
     else if (millis() > 3000)
     {
-        DrawBottomMessage("Disconnected", COLOR_WHITE);
+
     }
     delay(10);
 }
 
-void DrawBottomMessage(const char* msg, uint16_t color)
-{
-    const int16_t textHeight = 16;
-    const int16_t yOffset = CANVAS_HEIGHT - textHeight;
-    FillRect(0, yOffset, CANVAS_WIDTH, textHeight, COLOR_BLACK);
-    DrawMessage(msg, 0, yOffset, 2, true, color);
-    RedrawFromCanvas();
-}
-
-void DrawMessage(const char* msg, int xStart, int yStart, int scale, bool overwrite, uint16_t color)
-{
-    const int lineHeight = 8 * scale + 4;
-
-    const int xEnd = CANVAS_WIDTH - scale;
-    const int yEnd = CANVAS_HEIGHT - scale;
-
-    int x = xStart;
-    int y = yStart;
-
-    Font8x8::GlyphShifter shifter;
-    for (int charIndex = 0; charIndex < strlen(msg); ++charIndex)
-    {
-        if (msg[charIndex] == '\n')
-        {
-            x = xStart;
-            y += lineHeight;
-            if (y >= yEnd)
-                return;
-            continue;
-        }
-        shifter.PutChar(msg[charIndex]);
-        while (shifter.HasGlyph())
-        {
-            uint8_t column = shifter.ShiftLeft();
-            DrawColumn8(x, y, column, scale, overwrite, color);
-            x += scale;
-            if (x >= xEnd)
-            {
-                x = xStart;
-                y += lineHeight;
-                if (y >= yEnd)
-                    return;
-            }
-        }
-    }
-}
 
 void DrawDirection(uint8_t direction)
 {
     const uint8_t* imageProgmem = ImageFromDirection(direction);
     if (imageProgmem)
     {
-        Draw4bitImageProgmem(0, 0, 64, 64, imageProgmem);
+        IDisplay.drawDirection(0, 0, 64, 64, imageProgmem);
     }
 }
 
@@ -360,28 +290,10 @@ void DrawSpeed(uint8_t speed)
     if (speed == 0)
         return;
 
-    char str[4] = {};
-    sprintf(str, "%u", (unsigned int)speed);
-    DrawImageProgmem(64, 0, 64, 64, reinterpret_cast<const uint16_t*>(IMG_speedLimit64x64_16b));
+    char str[7] = {};
+    sprintf(str, "%u Km", (unsigned int)speed);
 
-    int x = 10;
-    int y = 18;
-    int scale = 4;
-
-    if (speed <= 9)
-        x = 20;
-    else if (speed <= 19)
-        x = 14;
-    else if (speed >= 40 && speed <= 49)
-        x = 7;
-    else if (speed >= 100)
-    {
-        y = 22;
-        scale = 3;
-        if (speed >= 110 && speed <= 119)
-            x = 14;
-    }
-    DrawMessage(str, 64 + x, y, scale, false, 0x0000);
+    IDisplay.drawMessage(128, 5, 128, str, ArialMT_Plain_16, TEXT_ALIGN_RIGHT);
 }
 
 const uint8_t* ImageFromDirection(uint8_t direction)
@@ -429,142 +341,4 @@ const uint8_t* ImageFromDirection(uint8_t direction)
         case DirectionRoundaboutLS: return IMG_directionRoundaboutLS;
     }
     return IMG_directionError;
-}
-
-void RedrawFromCanvas()
-{
-    g_display.SendImage(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, g_canvas);
-}
-
-void DrawImageProgmem(int xStart, int yStart, int width, int height, const uint16_t* pBmp)
-{
-    const int sizePixels = width * height;
-    for (int y = yStart; y < yStart + height; ++y)
-    {
-        for (int x = xStart; x < xStart + width; ++x)
-        {
-            SetPixelCanvas(x, y, pgm_read_word(pBmp++));
-        }
-    }
-}
-
-uint16_t Color4To16bit(uint16_t color4bit)
-{
-    color4bit &= 0x0F;
-    uint16_t color16bit = 0;
-
-    const uint16_t maxColor4bit = 0x0F;
-    const uint16_t maxColor5bit = 0x1F;
-    const uint16_t maxColor6bit = 0x3F;
-
-    const uint16_t red   = color4bit * maxColor5bit / maxColor4bit;
-    const uint16_t green = color4bit * maxColor6bit / maxColor4bit;
-    const uint16_t blue  = color4bit * maxColor5bit / maxColor4bit;
-
-    //color 16 bit: rrrrrggg gggbbbbb
-    color16bit |= red << 11;
-    color16bit |= green << 5;
-    color16bit |= blue;
-
-//    if (color4bit & 0b10000000 || (color4bit & 0xF0) == 0) color16bit |= (0x0F & color4bit) << 12; //red, 5 bit
-//    if (color4bit & 0b01000000 || (color4bit & 0xF0) == 0) color16bit |= (0x0F & color4bit) << 7;  //green, 6 bit
-//    if (color4bit & 0b00100000 || (color4bit & 0xF0) == 0) color16bit |= (0x0F & color4bit) << 1;  //blue, 5 bit
-
-    return color16bit;
-}
-
-void Draw4bitImageProgmem(int x, int y, int width, int height, const uint8_t* pBmp)
-{
-    const int sizePixels = width * height;
-    for (int i = 1; i < sizePixels; i += 2)
-    {
-        uint8_t data = pgm_read_byte(pBmp++);
-        uint8_t leftPixel = (data & 0x0F);
-        uint8_t rightPixel = (data & 0xF0) >> 4;
-
-        int yLeft = y + (i - 1) / width;
-        int xLeft = x + (i - 1) % width;
-
-        int yRight = y + i / width;
-        int xRight = x + i % width;
-
-        SetPixelCanvas(xLeft, yLeft, Color4To16bit(leftPixel));
-        SetPixelCanvas(xRight, yRight, Color4To16bit(rightPixel));
-    }
-}
-
-void SetPixelCanvas(int16_t x, int16_t y, uint16_t value)
-{
-#if DISPLAY_MIRRORED
-    x = CANVAS_WIDTH - x;
-#endif
-
-#if DISPLAY_ROTATION == 90
-    const int16_t xOriginal = x;
-    x = CANVAS_WIDTH - y;
-    y = xOriginal;
-#elif DISPLAY_ROTATION == 180
-    x = CANVAS_WIDTH - x;
-    y = CANVAS_HEIGHT - y;
-#elif DISPLAY_ROTATION == 270
-    const int16_t xOriginal = x;
-    x = y;
-    y = CANVAS_HEIGHT - xOriginal;
-#endif
-
-    if (x < 0 || y < 0 || x >= CANVAS_WIDTH || y >= CANVAS_HEIGHT)
-    {
-        return;
-    }
-    g_canvas[y * CANVAS_WIDTH + x] = value;
-}
-
-void SetPixelCanvasIfNot0(int16_t x, int16_t y, uint16_t value)
-{
-    if (value)
-        SetPixelCanvas(x, y, value);
-}
-
-void DrawColumn8(int16_t x, int16_t y, uint8_t columnData, int scale, bool overwrite, uint16_t color)
-{
-    uint8_t mask = 1;
-    for (uint8_t row = 0; row < Font8x8::HEIGHT * scale; row += scale)
-    {
-        for (int fillIndex = 0; fillIndex < scale * scale; ++fillIndex)
-        {
-            int16_t xDestination = x + fillIndex % scale;
-            int16_t yDestination = y + row + fillIndex / scale;
-
-            if (columnData & mask)
-                SetPixelCanvas(xDestination, yDestination, color);
-            else if (overwrite)
-                SetPixelCanvas(xDestination, yDestination, 0x0000);
-        }
-
-        mask <<= 1;
-    }
-}
-
-void FillRect(int16_t x, int16_t y, int16_t width, int16_t height, uint16_t color)
-{
-    if (x >= CANVAS_WIDTH ||
-        y >= CANVAS_HEIGHT ||
-        width <= 0 ||
-        height <= 0)
-    {
-        return;
-    }
-
-    int16_t xStart = max(x, int16_t(0));
-    int16_t yStart = max(y, int16_t(0));
-    int16_t xEnd = min(x + width, CANVAS_WIDTH);
-    int16_t yEnd = min(y + height, CANVAS_HEIGHT);
-
-    for (int16_t y = yStart; y < yEnd; ++y)
-    {
-        for (int16_t x = xStart; x < xEnd; ++x)
-        {
-            SetPixelCanvas(x, y, color);
-        }
-    }
 }
