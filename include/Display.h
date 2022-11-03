@@ -26,15 +26,15 @@ public:
 
 	int counter;
 
-	void init();
-	void drawWelcomeScreen();
-    void clearscreen();
-    void displayscreen();
+	void init(void);
+	void drawWelcomeScreen(void);
+    void clearscreen(void);
+    void displayscreen(void);
 	void drawConnectionScreen(const uint8_t* direction);
-	void drawDirection(int16_t x, int16_t y, int16_t width, int16_t height, const uint8_t* direction);
+	void drawImage(int16_t x, int16_t y, int16_t width, int16_t height, const uint8_t* direction);
     void drawMessage(int16_t x, int16_t y, uint16_t maxLineWidth, const char *text, const uint8_t *font, OLEDDISPLAY_TEXT_ALIGNMENT align);
-	void displayOn();
-	void displayOff();
+	void displayOn(void);
+	void displayOff(void);
 
 private:
 	SSD1306Wire* oled;

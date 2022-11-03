@@ -25,7 +25,7 @@ void Display::init()
 {
 	//initialize OLED display
 	oled->init();
-	oled->flipScreenVertically();
+	// oled->flipScreenVertically();
 	oled->setFont(ArialMT_Plain_10);
 }
 
@@ -59,25 +59,11 @@ void Display::drawConnectionScreen(const uint8_t* direction)
 {
 	// clear the display
 	oled->clear();
-	oled->setTextAlignment(TEXT_ALIGN_RIGHT);
-	oled->setFont(ArialMT_Plain_16);
-	oled->drawStringMaxWidth(128,5,128, "60Km");
-
-	oled->setTextAlignment(TEXT_ALIGN_RIGHT);
-	oled->setFont(ArialMT_Plain_16);
-	oled->drawStringMaxWidth(128,40,128, "1000m");
-
-
-	oled->drawXbm(0, 0, 64, 64, direction);
-	//int progress = (counter / 5) % 100;
-	// int progress = ((counter % 5)+1) * 20;
-	// draw the progress bar
-	// oled->drawProgressBar(0, 50, 120, 10, progress);
-
+	oled->drawXbm(32, 0, 64, 64, direction);
 	oled->display();
 }
 
-void Display::drawDirection(int16_t x, int16_t y, int16_t width, int16_t height, const uint8_t* direction)
+void Display::drawImage(int16_t x, int16_t y, int16_t width, int16_t height, const uint8_t* direction)
 {
 	oled->drawXbm(x, y, width, height, direction);
 }
