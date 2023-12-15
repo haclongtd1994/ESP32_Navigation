@@ -5,7 +5,7 @@ Modified Hardware support:
 
 # Bluetooth Low Energy head-up display
 
-https://www.facebook.com/story.php?story_fbid=10156820199717852&id=92684932851
+https://www.tiktok.com/@codergacon/video/7162905984959106330
 
 ![Prototype](/images/IMG_BLE_HUD.png)
 
@@ -83,3 +83,14 @@ G16 | RST
 
 
 ### Display OLED SSD1306 128x64
+Display: COEM 128x64 OLED IIC&SPI ([link](https://shopee.vn/B%E1%BA%A3ng-m%E1%BA%A1ch-m%C3%A0n-h%C3%ACnh-LCD-OLED-SSD1306-12864-0.96-inch-IIC-SPI-7-4-ch%E1%BA%A5u-nhi%E1%BB%81u-m%C3%A0u-s%E1%BA%AFc-cho-Arduino-i.148048328.16649282999?sp_atk=144d4113-5f2a-4d0f-880d-6ac3cff1494c&xptdk=144d4113-5f2a-4d0f-880d-6ac3cff1494c))
+
+Protocol: SSD1306
+
+Connected this way:
+ESP32 | Display
+----- | ---------------
+GND | GND
+3.3v | VCC
+G33 | SCL
+G27 | SDA
