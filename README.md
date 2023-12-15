@@ -47,41 +47,6 @@ Service | DD3F0AD1-6239-4E1F-81F1-91F6C9F01D86
 Characteristic for indicate | DD3F0AD2-6239-4E1F-81F1-91F6C9F01D86
 Characteristic for data write | DD3F0AD3-6239-4E1F-81F1-91F6C9F01D86
 
-### TTGO T-Display
-To enable TTGO T-Display:
-1. Download library [TFT_eSPI adjusted by TTGO](https://github.com/Xinyuan-LilyGO/TTGO-T-Display), copy TFT_eSPI folder to Arduino/libraries
-1. Uncomment display in code
-```
-// comment out these lines 
-#include "OLED_SSD1351_nolib.h"
-OLED_SSD1351_nolib selectedDisplay;
-constexpr bool ENABLE_VOLTAGE_MEASUREMENT = false;
-
-// uncomment these lines
-//#include "TFT_TTGO.h"
-//TFT_TTGO selectedDisplay;
-//constexpr bool ENABLE_VOLTAGE_MEASUREMENT = true;
-```
-
-### Display OLED 128x128
-Display: Waveshare 14747 128x128 OLED RGB ([link](https://www.waveshare.com/1.5inch-rgb-oled-module.htm))
-
-Protocol: SSD1351
-
-*Note: there is a great graphics library for this display: [Adafruit-SSD1351-library](https://github.com/adafruit/Adafruit-SSD1351-library), but it's not used in this project.*
-
-Connected this way:
-ESP32 | Display WS14747
------ | ---------------
-G23 | DIN
-G18 | CLK
-G5 | CS
-G17 | DC
-G16 | RST
-
-![Display connection](/images/IMG_Display_connection.jpg)
-
-
 ### Display OLED SSD1306 128x64
 Display: COEM 128x64 OLED IIC&SPI ([link](https://shopee.vn/B%E1%BA%A3ng-m%E1%BA%A1ch-m%C3%A0n-h%C3%ACnh-LCD-OLED-SSD1306-12864-0.96-inch-IIC-SPI-7-4-ch%E1%BA%A5u-nhi%E1%BB%81u-m%C3%A0u-s%E1%BA%AFc-cho-Arduino-i.148048328.16649282999?sp_atk=144d4113-5f2a-4d0f-880d-6ac3cff1494c&xptdk=144d4113-5f2a-4d0f-880d-6ac3cff1494c))
 
