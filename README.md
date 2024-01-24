@@ -30,6 +30,7 @@ Notes:
 ### Supported ESP32 modules
 * ESP32 with external OLED display 128x128 (enabled by-default), [how to connect](https://github.com/alexanderlavrushko/BLE-HUD-navigation-ESP32#display-oled-128x128)
 * ESP32 TTGO T-Display with embedded TFT 135x240, [how to enable](https://github.com/alexanderlavrushko/BLE-HUD-navigation-ESP32#ttgo-t-display)
+* ESP32 with external OLED SSD1306 display 128x64 (enabled by-default), [how to connect](https://github.com/alexanderlavrushko/BLE-HUD-navigation-ESP32#display-oled-128x64)
 
 ### Technical info
 1. Connection flow:
@@ -59,3 +60,4 @@ GND | GND
 3.3v | VCC
 G33 | SCL
 G27 | SDA
+SCL & SDA pins could be change by you(settings placed in main.cpp line 24)
